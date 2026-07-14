@@ -1,12 +1,12 @@
 use std::fs::{self, File};
 use std::process::Command;
 use std::path::{Path, PathBuf};
-use std::str;
 use clap::Parser;
 
 
 mod parser;
 mod fs_utils;
+mod crypt;
 
 
 fn main() {
@@ -67,7 +67,19 @@ fn main() {
                 Ok(s) if s.success() => {
                     if let Ok(device) = fs_utils::get_device_name(&args.device) {
                         println!("losetup create device: {}", device);
-                        let mount_cmd = fs_utils::DiskCommand::new_mount(device, args.path);
+
+                        let f = crypt::CryptCommand::encrypt_loop(device.clone(), "test".to_string());
+                        f.execute();
+
+                        let c = crypt::CryptCommand::activate_loop(device.clone(), "test".to_string());
+                        c.execute();
+
+                        let encrypt_device = device.replace("/dev/", "/dev/mapper/crypt_");
+
+                        let fsystem = fs_utils::LoopDevice::new(encrypt_device.clone());
+                        fsystem.ensure_formatted(fs_utils::FileSystem::Ext4);
+
+                        let mount_cmd = fs_utils::DiskCommand::new_mount(encrypt_device, args.path);
                         mount_cmd.execute()
                     }
                 }

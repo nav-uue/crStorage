@@ -18,8 +18,8 @@ pub enum DiskCommand{
 #[derive(Debug, Clone, Copy)]
 pub enum FileSystem {
     Ext4,
-    Xfs,
-    Vfat,
+    // Xfs,
+    // Vfat,
 }
 
 #[derive(Debug)]
@@ -107,8 +107,8 @@ impl FileSystem {
     fn mkfs_command(&self) -> &'static str {
         match self {
             FileSystem::Ext4 => "mkfs.ext4",
-            FileSystem::Xfs => "mkfs.xfs",
-            FileSystem::Vfat => "mkfs.vfat",
+            // FileSystem::Xfs => "mkfs.xfs",
+            // FileSystem::Vfat => "mkfs.vfat",
         }
     }
 }
@@ -238,4 +238,21 @@ pub fn get_loop_device(mount_point: &str) -> std::io::Result<Option<String>> {
         }
     }
     Ok(None)
+}
+
+pub fn get_mount_point(device_path: &str) -> Option<PathBuf> {
+    // Открываем файл со списком текущих монтирований в Linux
+    let file = File::open("/proc/mounts").ok()?;
+    let reader = BufReader::new(file);
+
+    for line in reader.lines().flatten() {
+        // Разделяем строку по пробелам
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        
+        // Структура строки: [0] девайс, [1] точка монтирования, [2] тип ФС...
+        if parts.len() >= 2 && parts[0] == device_path {
+            return Some(PathBuf::from(parts[1]));
+        }
+    }
+    None // Если устройство не примонтировано
 }
