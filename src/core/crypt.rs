@@ -10,7 +10,7 @@ use libcryptsetup_rs::{
     CryptInit, LibcryptErr, TokenInput,
 };
 
-use crate::fs_utils::get_mount_point;
+use crate::core::fs_utils::get_mount_point;
 
 
 #[derive(Debug)]

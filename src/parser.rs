@@ -2,6 +2,15 @@ use clap::{Parser, Subcommand, Args};
 use std::path::PathBuf;
 
 
+
+const BANNER: &str = r#"
+  ____   ____           ____    _____    ___    ____       _       ____   _____ 
+ / ___| |  _ \         / ___|  |_   _|  / _ \  |  _ \     / \     / ___| | ____|
+| |     | |_) |  ____  \___ \    | |   | | | | | |_) |   / _ \   | |  _  |  _|  
+| |___  |  _ <  |____|  ___) |   | |   | |_| | |  _ <   / ___ \  | |_| | | |___ 
+ \____| |_| \_\        |____/    |_|    \___/  |_| \_\ /_/   \_\  \____| |_____|
+"#;
+
 const EXAMPLES: &str = "Examples:\n  \
                         sudo crStorage create --name[-n] file_name  --size[-s] 32[MB/GB] --path[-p] /your/path\n  \
                         sudo crStorage delete --name[-n] file_name";
@@ -13,6 +22,7 @@ const EXAMPLES: &str = "Examples:\n  \
     version = "1.0.0", 
     about = "Simple encription tool", 
     long_about,
+    before_help = BANNER,
     after_help(EXAMPLES)
 )]
 pub struct Cli {
