@@ -37,7 +37,7 @@ pub fn run() {
                 // target user for the disk
                 user: args.user,
                 // convert string to PathBuf
-                image: args.image,
+                image: args.image.clone(),
                 // Image file size
                 size: size,
             };
@@ -47,31 +47,68 @@ pub fn run() {
                 Err(e) => eprintln!("Error creating file: {}", e)
             }
 
+            let losetup_create_device = Command::new("losetup")
+                .args(&["-f", "--", &args.image])
+                .status();
+
+            match losetup_create_device {
+                Ok(s) if s.success() => {
+                    if let Ok(mut device) = fs_utils::get_device_name(&args.image) {
+                        println!("Losetup create device: {}", device);
+
+                        if args.encrypt {
+
+                            println!("Enter password for {}: ", device);
+                            let mut password = String::new();
+
+                            std::io::stdin().read_line(&mut password).expect("Failed to read password");
+
+                            crypt::CryptCommand::encrypt_loop(device.clone(), password.clone().trim().to_string()).execute();
+                            crypt::CryptCommand::activate_loop(device.clone(), password.trim().to_string()).execute();
+
+                            device = device.replace("/dev/", "/dev/mapper/crypt_");
+
+                        };
+
+                        fs_utils::LoopDevice::new(device.clone()).ensure_formatted(fs_utils::FileSystem::Ext4);
+
+                        match fs::create_dir_all(&args.path) {
+                            Ok(_) => fs_utils::DiskCommand::new_mount(device, args.path.clone()).execute(),
+                            Err(e) => eprintln!("Failed create mount point {}: {}", args.path, e)
+                        }
+
+                    }
+                }
+                Ok(s) => eprintln!("losetup failed with exit code: {:?}", s.code()),
+                Err(e) => eprintln!("Failed to execute command: {}", e),
+            }
+
         }
         Commands::Mount(args) => {
 
-            let losetup_create_image = Command::new("losetup")
-                .args(&["-f", "--", &args.device])
+            let losetup_create_device = Command::new("losetup")
+                .args(&["-f", "--", &args.image])
                 .status();
 
-            match losetup_create_image {
+            match losetup_create_device {
                 Ok(s) if s.success() => {
-                    if let Ok(device) = fs_utils::get_device_name(&args.device) {
+                    if let Ok(mut device) = fs_utils::get_device_name(&args.image) {
                         println!("losetup create device: {}", device);
 
-                        let f = crypt::CryptCommand::encrypt_loop(device.clone(), "test".to_string());
-                        f.execute();
+                        if args.encrypt {
 
-                        let c = crypt::CryptCommand::activate_loop(device.clone(), "test".to_string());
-                        c.execute();
+                            println!("Enter password for {}: ", device);
+                            let mut password = String::new();
 
-                        let encrypt_device = device.replace("/dev/", "/dev/mapper/crypt_");
+                            std::io::stdin().read_line(&mut password).expect("Failed to read password");
 
-                        let fsystem = fs_utils::LoopDevice::new(encrypt_device.clone());
-                        fsystem.ensure_formatted(fs_utils::FileSystem::Ext4);
+                            crypt::CryptCommand::activate_loop(device.clone(), password.trim().to_string()).execute();
 
-                        let mount_cmd = fs_utils::DiskCommand::new_mount(encrypt_device, args.path);
-                        mount_cmd.execute()
+                            device = device.replace("/dev/", "/dev/mapper/crypt_");
+                        }
+
+                        fs_utils::DiskCommand::new_mount(device, args.path).execute();
+
                     }
                 }
                 Ok(s) => eprintln!("losetup failed with exit code: {:?}", s.code()),
@@ -83,13 +120,16 @@ pub fn run() {
 
             match fs_utils::get_loop_device(&args.path) {
                 Ok(Some(device)) => {
-                    println!("Device: {}", &device);
+                    println!("Device: {}", device);
 
-                    let umount_cmd = fs_utils::DiskCommand::new_umount(args.path.clone());
-                    umount_cmd.execute();
+                    fs_utils::DiskCommand::new_umount(args.path.clone()).execute();
+
+                    if device.contains("mapper/crypt_") {
+                        crypt::CryptCommand::deactivate_loop(device.clone()).execute()
+                    }
                     
                     let detach_result = Command::new("losetup")
-                        .args(&["-d", &device])
+                        .args(&["-d", &device.replace("mapper/crypt_", "")])
                         .output()
                         .map_err(|e| format!("Failed to execute losetup detach: {}", e));
 

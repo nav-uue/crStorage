@@ -61,59 +61,39 @@ impl CryptCommand {
                 let mut device = match CryptInit::init(Path::new(&device_path)) {
                     Ok(device) => device,
                     Err(e) => {
-                        eprintln!("Failed to initialize device activate {}: {}", device_path, e);
+                        eprintln!("Failed to initialize device activate {}: {}", &device_path, e);
                         return;
                     }
                 };
 
                 match device.context_handle().load::<()>(Some(EncryptionFormat::Luks2), None) {
                     Ok(_) => {
-                        match device.activate_handle().activate_by_passphrase(Some(&mapper_name), None, &password.as_bytes(), CryptActivate::empty()) {
+                        match device.activate_handle().activate_by_passphrase(Some(&mapper_name), None, password.as_bytes(), CryptActivate::empty()) {
                             Ok(_) => println!("Device {} successfully open.", &device_path.replace("/dev/", "/dev/mapper/crypt_")),
                             Err(e) => eprintln!("Failed to activate device: {:?}", e),
                         }
                     },
-                    Err(e) => eprintln!("Failed to activate device: {:?}", e)
+                    Err(e) => eprintln!("Failed to load LUKS2 context: {:?}", e)
                 }
 
             }
             CryptCommand::DeactivateLoop { device_path } => {
 
-                if let Some(mount_path) = get_mount_point(&device_path.replace("/dev/", "/dev/mapper/crypt_")) {
-
-                    let status = std::process::Command::new("umount")
-                        .arg("-l")
-                        .arg(mount_path)
-                        .status()
-                        .unwrap();
-                    if status.success() {
-                        println!("Successfully umount")
-                    }
-                } else {
-                    println!("Device is not mounted!");
-                }
-
-
-                let mapper_name = device_path.replace("/dev/", "crypt_");
-                println!("mapper_name: {}", &mapper_name);
+                let mapper_name = device_path.replace("/dev/mapper/", "");
+                println!("Mapper_name: {}", &mapper_name);
 
                 let mut cd = match CryptInit::init(Path::new(&device_path)) {
                     Ok(device) => device,
                     Err(e) => {
-                        eprintln!("Failed to initialize device deactivation {}: {}", device_path, e);
+                        eprintln!("Failed to initialize device deactivation {}: {}", &device_path, e);
                         return;
                     }
                 };
 
-                match cd.context_handle().load::<()>(Some(EncryptionFormat::Luks2), None) {
-                    Ok(_) => {
-                        match cd.activate_handle().deactivate(&mapper_name, CryptDeactivate::empty()) {
-                            Ok(_) => println!("Device /dev/mapper/{} successfully closed and locked", mapper_name),
-                            Err(e) => eprintln!("Failed to deactivate device: {:?}", e),
-                        }
-                    },
+                match cd.activate_handle().deactivate(&mapper_name, CryptDeactivate::empty()) {
+                    Ok(_) => println!("Device /dev/mapper/{} successfully closed and locked", mapper_name),
                     Err(e) => eprintln!("Failed to deactivate device: {:?}", e),
-                };
+                }
                 
             }
 

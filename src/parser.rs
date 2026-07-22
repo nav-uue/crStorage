@@ -73,7 +73,10 @@ pub struct DiskmakeArgs {
 pub struct MountArgs {
 
     #[arg(short, long)]
-    pub device: String,
+    pub encrypt: bool,
+
+    #[arg(short, long)]
+    pub image: String,
 
     #[arg(short, long)]
     pub path: String

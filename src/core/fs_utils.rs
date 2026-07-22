@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::{self, BufRead, BufReader};
 
 
@@ -170,10 +170,10 @@ impl LoopDevice {
     pub fn ensure_formatted(&self, default_fs: FileSystem) {
         if !self.fs_status() {
             if let Err(e) = self.format_device(default_fs) {
-                eprintln!("Критическая ошибка: {}", e);
+                eprintln!("Critical error: {}", e);
             }
         } else {
-            println!("Пропуск форматирования для {:?}", self.device_path);
+            println!("Skipping formatting for {:?}", self.device_path);
         }
     }
 
@@ -195,6 +195,11 @@ pub fn create_image_file(args: FileArgs) -> Result<(), std::io::Error> {
     let img_name = match full_path.file_name() {
         Some(name) => name.to_string_lossy().into_owned(),
         None => format!("{}.img", args.user)
+    };
+
+    // Create all directories in the path
+    if !Path::new(&img_path).is_dir() {
+        fs::create_dir_all(&img_path).expect("Failed create image path");
     };
 
     // Create a new path after validation
@@ -321,4 +326,15 @@ pub fn get_mount_point(device_path: &str) -> Option<PathBuf> {
         }
     }
     None // If device is unmounted
+}
+
+pub fn check_mountpoint_status(path: &str) -> bool {
+    let status = Command::new("moutpoint")
+        .args(&["-q", path])
+        .status();
+
+    match status {
+        Ok(exit_status) => exit_status.success(),
+        Err(_) => false,
+    }
 }
