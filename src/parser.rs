@@ -12,12 +12,13 @@ const BANNER: &str = r#"
 "#;
 
 const EXAMPLES: &str = "Examples:\n  \
-                        sudo crStorage create --name[-n] file_name  --size[-s] 32[MB/GB] --path[-p] /your/path\n  \
-                        sudo crStorage delete --name[-n] file_name";
+                        sudo cr-storage diskmake --encrypt[-e] --user[-u] file_owner --image[-i] /path/to/image.img  --size[-s] 32[MB/GB] --path[-p] /your/mount/point\n  \
+                        sudo cr-storage mount --encrypt[-e] --image[-i] /path/to/image.img --path[-p] /your/mount/point\n  \
+                        sudo cr-storage umount --path[-p] /your/mount/point";
 
 #[derive(Parser, Debug)]
 #[command(
-    name = "crStorage",
+    name = "cr-storage",
     author = "nav-uue", 
     version = "1.0.0", 
     about = "Simple encription tool", 
